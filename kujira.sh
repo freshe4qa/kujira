@@ -155,7 +155,7 @@ break
 ;;
 
 "Create Validator")
-  kujirad tx staking create-validator 
+  kujirad tx staking create-validator \
   --moniker $NODENAME \
   --amount=1000000ukuji \
   --gas-prices=1ukuji \
