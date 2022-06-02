@@ -126,8 +126,6 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 EOF
 
-sudo mv $HOME/seid.service /etc/systemd/system/
-
 # start service
 sudo systemctl daemon-reload
 sudo systemctl enable kujirad
