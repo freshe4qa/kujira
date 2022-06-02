@@ -74,17 +74,18 @@ go version
     fi
 
 # download binary
+rm -rf $HOME/kujira-core
 git clone https://github.com/Team-Kujira/core $HOME/kujira-core
 cd $HOME/kujira-core
 make install
-kujirad version
+sleep 1
+ln -s $HOME/go/bin/kujirad /usr/local/bin/kujirad
+# init
+kujirad init $NODENAME --chain-id $CHAIN_ID
 
 # config
 kujirad config chain-id harpoon-3
 kujirad config keyring-backend file
-
-# init
-kujirad init $NODENAME --chain-id $CHAIN_ID
 
 # download genesis and addrbook
 wget https://raw.githubusercontent.com/Team-Kujira/networks/master/testnet/harpoon-3.json -O $HOME/.kujira/config/genesis.json
@@ -92,6 +93,11 @@ wget https://raw.githubusercontent.com/Team-Kujira/networks/master/testnet/addrb
 
 # set minimum gas price
 sed -i -e "s/^minimum-gas-prices *=.*/minimum-gas-prices = \"1ukuji\"/" $HOME/.kujira/config/app.toml
+
+#peers and seeds
+SEEDS="8e1590558d8fede2f8c9405b7ef550ff455ce842@51.79.30.9:26656,bfffaf3b2c38292bd0aa2a3efe59f210f49b5793@51.91.208.71:26656,106c6974096ca8224f20a85396155979dbd2fb09@198.244.141.176:26656"
+PEERS="111ba4e5ae97d5f294294ea6ca03c17506465ec5@208.68.39.221:26656,b16142de5e7d89ee87f36d3bbdd2c2356ca2509a@75.119.155.248:26656,ad7b2ecb931a926d60d1e034d0e37a83d0e265f1@109.107.181.127:26656,1b827c298f013900476c2eab25ce5ff75a6f8700@178.63.62.212:26656,111ba4e5ae97d5f294294ea6ca03c17506465ec5@208.68.39.221:26656,f114c02efc5aa7ee3ee6733d806a1fae2fbfb66b@5.189.178.222:46656,8980faac5295875a5ecd987a99392b9da56c9848@85.10.216.151:26656,3c3170f0bcbdcc1bef12ed7b92e8e03d634adf4e@65.108.103.236:27656"
+sed -i -e "s/^seeds *=.*/seeds = \"$SEEDS\"/; s/^persistent_peers *=.*/persistent_peers = \"$PEERS\"/" $HOME/.kujira/config/config.toml
 
 # enable prometheus
 sed -i -e "s/prometheus = false/prometheus = true/" $HOME/.kujira/config/config.toml
@@ -111,22 +117,24 @@ sed -i -e "s/^pruning-interval *=.*/pruning-interval = \"$pruning_interval\"/" $
 kujirad tendermint unsafe-reset-all
 
 # create service
-sudo tee /etc/systemd/system/kujirad.service > /dev/null <<EOF
-[Unit]
-Description=Kujira Daemon
+echo "[Unit]
+Description=Kujirad Node
 After=network.target
 [Service]
+User=$USER
 Type=simple
-User=root
-ExecStart=/root/go/bin/kujirad start --log_level error 
+ExecStart=$(which kujirad) start
 Restart=on-failure
-RestartSec=3
 LimitNOFILE=65535
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target" > $HOME/kujirad.service
+sudo mv $HOME/kujirad.service /etc/systemd/system
+sudo tee <<EOF >/dev/null /etc/systemd/journald.conf
+Storage=persistent
 EOF
 
 # start service
+sudo systemctl restart systemd-journald
 sudo systemctl daemon-reload
 sudo systemctl enable kujirad
 sudo systemctl restart kujirad
@@ -158,7 +166,7 @@ break
   kujirad tx staking create-validator \
   --moniker $NODENAME \
   --amount=1000000ukuji \
-  --gas-prices=1ukuji \
+  --gas-prices=20000ukuji \
   --pubkey $(kujirad tendermint show-validator) \
   --from $WALLET \
   --yes \
