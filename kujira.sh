@@ -1,10 +1,5 @@
 #!/bin/bash
 
-while true
-do
-
-# Logo
-
 echo -e '\e[40m\e[91m'
 echo -e '  ____                  _                    '
 echo -e ' / ___|_ __ _   _ _ __ | |_ ___  _ __        '
@@ -22,25 +17,6 @@ echo -e '\e[0m'
 
 sleep 2
 
-# Menu
-
-PS3='Select an action: '
-options=(
-"Install"
-"Create Wallet"
-"Faucet"
-"Create Validator"
-"Exit")
-select opt in "${options[@]}"
-do
-case $opt in
-
-"Install")
-echo "============================================================"
-echo "Install start"
-echo "============================================================"
-
-
 if [ ! $NODENAME ]; then
 	read -p "Enter node name: " NODENAME
 	echo 'export NODENAME='$NODENAME >> $HOME/.bash_profile
@@ -49,18 +25,11 @@ echo "export WALLET=wallet" >> $HOME/.bash_profile
 echo "export CHAIN_ID=harpoon-4" >> $HOME/.bash_profile
 source $HOME/.bash_profile
 
-echo '================================================='
-echo 'Your node name: ' $NODENAME
-echo 'Your wallet name: ' $WALLET
-echo 'Your chain name: ' $CHAIN_ID
-echo '================================================='
 sleep 2
 
-echo -e "\e[1m\e[32m1. Updating packages... \e[0m" && sleep 1
 # update
 sudo apt update && sudo apt upgrade -y
 
-echo -e "\e[1m\e[32m2. Installing dependencies... \e[0m" && sleep 1
 # packages
 sudo apt install curl build-essential git wget jq make gcc tmux -y
 
@@ -75,7 +44,6 @@ echo "export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin" >> ~/.bash_profile
 source ~/.bash_profile
 go version
 
-echo -e "\e[1m\e[32m3. Downloading and building binaries... \e[0m" && sleep 1
 # download binary
 cd $HOME
 git clone https://github.com/Team-Kujira/core kujira-core && cd kujira-core
@@ -121,7 +89,6 @@ sed -i -e "s/^pruning-interval *=.*/pruning-interval = \"$pruning_interval\"/" $
 # reset
 kujirad tendermint unsafe-reset-all
 
-echo -e "\e[1m\e[32m4. Starting service... \e[0m" && sleep 1
 # create service
 sudo tee /etc/systemd/system/kujirad.service > /dev/null <<EOF
 [Unit]
@@ -141,52 +108,3 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable kujirad
 sudo systemctl restart kujirad
-
-break
-;;
-
-"Create Wallet")
-kujirad keys add $WALLET
-echo "============================================================"
-echo "Save address and mnemonic"
-echo "============================================================"
-WALLET_ADDRESS=$(kujirad keys show $WALLET -a)
-VALOPER_ADDRESS=$(kujirad keys show $WALLET --bech val -a)
-echo 'export WALLET_ADDRESS='${WALLET_ADDRESS} >> $HOME/.bash_profile
-echo 'export VALOPER_ADDRESS='${VALOPER_ADDRESS} >> $HOME/.bash_profile
-source $HOME/.bash_profile
-
-break
-;;
-
-"Faucet")
-echo "============================================================"
-echo "Faucet in Discord"
-echo "============================================================"
-
-break
-;;
-
-"Create Validator")
-kujirad tx staking create-validator \
-  --amount 1999000ukuji \
-  --from $WALLET \
-  --commission-max-change-rate "0.01" \
-  --commission-max-rate "0.2" \
-  --commission-rate "0.07" \
-  --min-self-delegation "1" \
-  --pubkey  $(kujirad tendermint show-validator) \
-  --moniker $NODENAME \
-  --chain-id $CHAIN_ID \
-  --fees 250ukuji
-  
-break
-;;
-
-"Exit")
-exit
-;;
-*) echo "invalid option $REPLY";;
-esac
-done
-done
