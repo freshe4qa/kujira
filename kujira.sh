@@ -137,6 +137,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable kujirad
 sudo systemctl restart kujirad
 
+break
+;;
+
 "Create Wallet")
 kujirad keys add $WALLET
 echo "============================================================"
