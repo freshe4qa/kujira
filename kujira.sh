@@ -28,7 +28,6 @@ PS3='Select an action: '
 options=(
 "Install"
 "Create Wallet"
-"Faucet"
 "Create Validator"
 "Exit")
 select opt in "${options[@]}"
@@ -47,13 +46,12 @@ if [ ! $NODENAME ]; then
 	echo 'export NODENAME='$NODENAME >> $HOME/.bash_profile
 fi
 echo "export WALLET=wallet" >> $HOME/.bash_profile
-echo "export CHAIN_ID=harpoon-3" >> $HOME/.bash_profile
+echo "export CHAIN_ID=harpoon-4" >> $HOME/.bash_profile
 source $HOME/.bash_profile
 
 # update
 sudo apt update && sudo apt upgrade -y
-sudo apt update && sudo apt dist-upgrade -y
-sudo apt install build-essential git unzip curl wget -y
+sudo apt install curl build-essential git wget jq make gcc tmux -y
 
 
 # install go
@@ -63,51 +61,54 @@ source $HOME/.bash_profile
         echo -e '\n\e[40m\e[92mSkipped Go installation\e[0m'
     else
         echo -e '\n\e[40m\e[92mStarting Go installation...\e[0m'
-        ver="1.18.1" && \
-wget "https://golang.org/dl/go$ver.linux-amd64.tar.gz" && \
-sudo rm -rf /usr/local/go && \
-sudo tar -C /usr/local -xzf "go$ver.linux-amd64.tar.gz" && \
-rm "go$ver.linux-amd64.tar.gz" && \
-echo "export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin" >> $HOME/.bash_profile && \
-source $HOME/.bash_profile && \
-go version
+        ver="1.18.2" \
+cd $HOME \
+wget "https://golang.org/dl/go$ver.linux-amd64.tar.gz" \
+sudo rm -rf /usr/local/go \
+sudo tar -C /usr/local -xzf "go$ver.linux-amd64.tar.gz" \
+rm "go$ver.linux-amd64.tar.gz" \
+echo "export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin" >> ~/.bash_profile \
+source ~/.bash_profile \
+go version \
     fi
 
 # download binary
-rm -rf $HOME/kujira-core
-git clone https://github.com/Team-Kujira/core $HOME/kujira-core
-cd $HOME/kujira-core
+cd $HOME
+git clone https://github.com/Team-Kujira/core kujira-core && cd kujira-core
+git checkout v0.4.0
 make install
-sleep 1
-ln -s $HOME/go/bin/kujirad /usr/local/bin/kujirad
+
+# config
+kujirad config chain-id $CHAIN_ID
+kujirad config keyring-backend file
+
 # init
 kujirad init $NODENAME --chain-id $CHAIN_ID
 
-# config
-kujirad config chain-id harpoon-3
-kujirad config keyring-backend file
+# download genesis
+wget -qO $HOME/.kujira/config/genesis.json "https://raw.githubusercontent.com/Team-Kujira/networks/master/testnet/harpoon-4.json"
 
-# download genesis and addrbook
-wget https://raw.githubusercontent.com/Team-Kujira/networks/master/testnet/harpoon-3.json -O $HOME/.kujira/config/genesis.json
-wget https://raw.githubusercontent.com/Team-Kujira/networks/master/testnet/addrbook.json -O $HOME/.kujira/config/addrbook.json
-
-# set minimum gas price
-sed -i -e "s/^minimum-gas-prices *=.*/minimum-gas-prices = \"1ukuji\"/" $HOME/.kujira/config/app.toml
+# set minimum gas price and timeout
+sed -i -e "s/^minimum-gas-prices *=.*/minimum-gas-prices = \"0.00125ukuji\"/" $HOME/.kujira/config/app.toml
+sed -i -e "s/^timeout_commit *=.*/timeout_commit = \"1500ms\"/" $HOME/.kujira/config/config.toml
 
 #peers and seeds
-SEEDS="8e1590558d8fede2f8c9405b7ef550ff455ce842@51.79.30.9:26656,bfffaf3b2c38292bd0aa2a3efe59f210f49b5793@51.91.208.71:26656,106c6974096ca8224f20a85396155979dbd2fb09@198.244.141.176:26656"
-PEERS="111ba4e5ae97d5f294294ea6ca03c17506465ec5@208.68.39.221:26656,b16142de5e7d89ee87f36d3bbdd2c2356ca2509a@75.119.155.248:26656,ad7b2ecb931a926d60d1e034d0e37a83d0e265f1@109.107.181.127:26656,1b827c298f013900476c2eab25ce5ff75a6f8700@178.63.62.212:26656,111ba4e5ae97d5f294294ea6ca03c17506465ec5@208.68.39.221:26656,f114c02efc5aa7ee3ee6733d806a1fae2fbfb66b@5.189.178.222:46656,8980faac5295875a5ecd987a99392b9da56c9848@85.10.216.151:26656,3c3170f0bcbdcc1bef12ed7b92e8e03d634adf4e@65.108.103.236:27656"
+SEEDS=""
+PEERS="87ea1a43e7eecdd54399551b767599921e170399@52.215.221.93:26656,021b782ba721e799cd3d5a940fc4bdad4264b148@65.108.103.236:16656,1d6f841271a1a3f78c6772b480523f3bb09b0b0b@15.235.47.99:26656,ccd2861990a98dc6b3787451485b2213dd3805fa@185.144.99.234:26656,909b8da1ea042a75e0e5c10dc55f37711d640388@95.216.208.150:53756,235d6ac8aebf5b6d1e6d46747958c6c6ff394e49@95.111.245.104:26656,b525548dd8bb95d93903b3635f5d119523b3045a@194.163.142.29:26656,26876aff0abd62e0ab14724b3984af6661a78293@139.59.38.171:36347,21fb5e54874ea84a9769ac61d29c4ff1d380f8ec@188.132.128.149:25656,06ebd0b308950d5b5a0e0d81096befe5ba07e0b3@193.31.118.143:25656,f9ee35cf9aec3010f26b02e5b3354efaf1c02d53@116.203.135.192:26656,c014d76c1a0d1e0d60c7a701a7eff5d639c6237c@157.90.179.182:29656,0ae4b755e3da85c7e3d35ce31c9338cb648bba61@164.92.187.133:26656,202a3d8bd5a0e151ced025fc9cbff606845c6435@49.12.222.155:26656"
 sed -i -e "s/^seeds *=.*/seeds = \"$SEEDS\"/; s/^persistent_peers *=.*/persistent_peers = \"$PEERS\"/" $HOME/.kujira/config/config.toml
+
+# disable indexing
+indexer="null"
+sed -i -e "s/^indexer *=.*/indexer = \"$indexer\"/" $HOME/.kujira/config/config.toml
 
 # enable prometheus
 sed -i -e "s/prometheus = false/prometheus = true/" $HOME/.kujira/config/config.toml
 
 # config pruning
 pruning="custom"
-pruning_keep_recent="809"
+pruning_keep_recent="100"
 pruning_keep_every="0"
-pruning_interval="43"
-
+pruning_interval="50"
 sed -i -e "s/^pruning *=.*/pruning = \"$pruning\"/" $HOME/.kujira/config/app.toml
 sed -i -e "s/^pruning-keep-recent *=.*/pruning-keep-recent = \"$pruning_keep_recent\"/" $HOME/.kujira/config/app.toml
 sed -i -e "s/^pruning-keep-every *=.*/pruning-keep-every = \"$pruning_keep_every\"/" $HOME/.kujira/config/app.toml
@@ -117,24 +118,21 @@ sed -i -e "s/^pruning-interval *=.*/pruning-interval = \"$pruning_interval\"/" $
 kujirad tendermint unsafe-reset-all
 
 # create service
-echo "[Unit]
-Description=Kujirad Node
-After=network.target
+sudo tee /etc/systemd/system/kujirad.service > /dev/null <<EOF
+[Unit]
+Description=kujira
+After=network-online.target
 [Service]
 User=$USER
-Type=simple
 ExecStart=$(which kujirad) start
 Restart=on-failure
+RestartSec=3
 LimitNOFILE=65535
 [Install]
-WantedBy=multi-user.target" > $HOME/kujirad.service
-sudo mv $HOME/kujirad.service /etc/systemd/system
-sudo tee <<EOF >/dev/null /etc/systemd/journald.conf
-Storage=persistent
+WantedBy=multi-user.target
 EOF
 
 # start service
-sudo systemctl restart systemd-journald
 sudo systemctl daemon-reload
 sudo systemctl enable kujirad
 sudo systemctl restart kujirad
@@ -156,26 +154,18 @@ source $HOME/.bash_profile
 break
 ;;
 
-"Faucet")
-curl -X POST https://faucet.kujira.app/$WALLET
-
-break
-;;
-
 "Create Validator")
   kujirad tx staking create-validator \
-  --moniker $NODENAME \
-  --amount=1000000ukuji \
-  --gas-prices=20000ukuji \
-  --pubkey $(kujirad tendermint show-validator) \
+  --amount 1999000ukuji \
   --from $WALLET \
-  --yes \
-  --node=tcp://localhost:26657 \
+  --commission-max-change-rate "0.01" \
+  --commission-max-rate "0.2" \
+  --commission-rate "0.07" \
+  --min-self-delegation "1" \
+  --pubkey  $(kujirad tendermint show-validator) \
+  --moniker $NODENAME \
   --chain-id $CHAIN_ID \
-  --commission-max-change-rate=0.01 \
-  --commission-max-rate=0.20 \
-  --commission-rate=0.10 \
-  --min-self-delegation=1
+  --fees 250ukuji
   
 break
 ;;
